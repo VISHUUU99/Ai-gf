@@ -1,5 +1,6 @@
 import os
 import requests
+import urllib.parse
 from telegram import Update
 from telegram.error import BadRequest
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
@@ -45,13 +46,17 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     user_message = update.message.text
-    api_url = "https://ukrainexinfo.42web.io/gf-api.php?key=Tushar7demo&message=hello+jaan={user_message}"
+    
+    # Message ko URL-safe banana (spaces ko encode karna) taaki error na aaye
+    safe_message = urllib.parse.quote(user_message)
+    api_url = f"https://ukrainexinfo.42web.io/gf-api.php?key=Tushar7demo&message={safe_message}"
     
     try:
         response = requests.get(api_url).json()
         reply_message = response.get("reply", "Kuch error aa gaya hai 🥺")
         await update.message.reply_text(reply_message)
     except Exception as e:
+        print(f"API Error: {e}")
         await update.message.reply_text("Abhi main thoda busy hoon, baad mein baat karte hain! 😇")
 
 if __name__ == '__main__':
