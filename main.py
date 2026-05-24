@@ -7,7 +7,6 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, Messa
 
 # Environment Variables
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
-# Apne channel ka username yahan '@' ke saath daalein
 CHANNEL_USERNAME = os.environ.get('CHANNEL_USERNAME', '@YourChannelUsername')
 
 async def is_user_subscribed(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
@@ -45,28 +44,32 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_message = update.message.text
     safe_message = urllib.parse.quote(user_message)
-    api_url = f"https://ukrainexinfo.42web.io/gf-api.php?key=Tushar7demo&message={safe_message}"
     
-    # 1. Fake Browser Headers banayein taaki 42web block na kare
+    # Cloudflare Workers bypass endpoint jo unke strict rules ko बाईपास karta hai
+    api_url = f"https://api.ukrainebst.workers.dev/gf-api.php?key=Tushar7demo&message={safe_message}"
+    
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/json"
     }
     
     try:
-        # 2. Request mein headers pass karein
-        res = requests.get(api_url, headers=headers)
-        
-        # Logs ke liye print lagaya hai taaki Railway dashboard par response dikhe
-        print(f"API Status Code: {res.status_code}")
+        res = requests.get(api_url, headers=headers, timeout=10)
+        print(f"API Status: {res.status_code}")
         
         response = res.json()
         reply_message = response.get("reply", "Kuch error aa gaya hai 🥺")
         await update.message.reply_text(reply_message)
         
     except Exception as e:
-        # Agar fir bhi koi dikkat aaye, toh asli wajah Railway logs me print hogi
-        print(f"Error details: {e}")
-        await update.message.reply_text("Abhi main thoda busy hoon, baad mein baat karte hain! 😇")
+        print(f"API Error Details: {e}")
+        # Agar workers endpoint block ho, toh back-up ke liye purana endpoint hit karega
+        try:
+            old_url = f"https://ukrainexinfo.42web.io/gf-api.php?key=Tushar7demo&message={safe_message}"
+            res = requests.get(old_url, headers=headers, timeout=10)
+            await update.message.reply_text(res.json().get("reply", "Hmm... main samajh nahi payi."))
+        except:
+            await update.message.reply_text("Abhi main thoda busy hoon, baad mein baat karte hain! 😇")
 
 if __name__ == '__main__':
     if not BOT_TOKEN:
@@ -79,4 +82,4 @@ if __name__ == '__main__':
     
     print("Bot is running...")
     app.run_polling()
-        
+    
