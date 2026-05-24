@@ -3,11 +3,10 @@ import requests
 from telegram import Update
 from telegram.error import BadRequest
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
-from telegram.interfaces import ChatAdministratorRights
 
 # Environment Variables
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
-# Apne channel ka username yahan '@' ke saath daalein (e.g., '@mychannel')
+# Apne channel ka username yahan '@' ke saath daalein
 CHANNEL_USERNAME = os.environ.get('CHANNEL_USERNAME', '@YourChannelUsername')
 
 async def is_user_subscribed(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
@@ -15,12 +14,11 @@ async def is_user_subscribed(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user_id = update.effective_user.id
     try:
         member = await context.bot.get_chat_member(chat_id=CHANNEL_USERNAME, user_id=user_id)
-        # Agar user left, kicked, ya member nahi hai toh False return karega
-        if member.status in ['left', 'kicked', 'restricted']:
+        if member.status in ['left', 'kicked']:
             return False
         return True
     except BadRequest:
-        # Agar bot channel mein admin nahi hai ya channel galat hai
+        # Agar bot channel mein admin nahi hai ya username galat hai
         print(f"Error: Bot channel {CHANNEL_USERNAME} ko access nahi kar pa raha hai.")
         return False
     except Exception as e:
@@ -67,4 +65,4 @@ if __name__ == '__main__':
     
     print("Bot is running...")
     app.run_polling()
-  
+    
