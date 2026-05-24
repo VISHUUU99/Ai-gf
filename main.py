@@ -1,6 +1,7 @@
 import os
-import requests
+import json
 import urllib.parse
+from playwright.async_api import async_playwright
 from telegram import Update
 from telegram.error import BadRequest
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
@@ -10,7 +11,7 @@ BOT_TOKEN = os.environ.get('BOT_TOKEN')
 CHANNEL_USERNAME = os.environ.get('CHANNEL_USERNAME', '@YourChannelUsername')
 
 async def is_user_subscribed(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    """User ne channel join kiya hai ya nahi check karne ke liye function"""
+    """User ne channel join kiya hai ya nahi check karne ke liye"""
     user_id = update.effective_user.id
     try:
         member = await context.bot.get_chat_member(chat_id=CHANNEL_USERNAME, user_id=user_id)
@@ -44,31 +45,34 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_message = update.message.text
     safe_message = urllib.parse.quote(user_message)
+    api_url = f"https://ukrainexinfo.42web.io/gf-api.php?key=Tushar7demo&message={safe_message}"
     
-    # Cloudflare Workers bypass endpoint jo unke strict rules ko बाईपास karta hai
-    api_url = f"https://api.ukrainebst.workers.dev/gf-api.php?key=Tushar7demo&message={safe_message}"
-    
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "application/json"
-    }
-    
-    try:
-        res = requests.get(api_url, headers=headers, timeout=10)
-        print(f"API Status: {res.status_code}")
-        
-        response = res.json()
-        reply_message = response.get("reply", "Kuch error aa gaya hai 🥺")
-        await update.message.reply_text(reply_message)
-        
-    except Exception as e:
-        print(f"API Error Details: {e}")
-        # Agar workers endpoint block ho, toh back-up ke liye purana endpoint hit karega
+    # Playwright ka use karke anti-bot ko browser se bypass karenge
+    async with async_playwright() as p:
         try:
-            old_url = f"https://ukrainexinfo.42web.io/gf-api.php?key=Tushar7demo&message={safe_message}"
-            res = requests.get(old_url, headers=headers, timeout=10)
-            await update.message.reply_text(res.json().get("reply", "Hmm... main samajh nahi payi."))
-        except:
+            # Headless browser open karna (bina screen ke)
+            browser = await p.chromium.launch(headless=True)
+            
+            # Real user agent set karna
+            context_page = await browser.new_context(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            )
+            page = await context_page.new_page()
+            
+            # API page par jana aur load hone ka wait karna
+            await page.goto(api_url, wait_until="networkidle")
+            
+            # Pure screen par jo raw text (JSON) aaya hai use nikalna
+            content = await page.locator("body").inner_text()
+            await browser.close()
+            
+            # Text ko wapas Python dictionary (JSON) mein convert karna
+            response = json.loads(content)
+            reply_message = response.get("reply", "Hmm... main samajh nahi payi 🥺")
+            await update.message.reply_text(reply_message)
+            
+        except Exception as e:
+            print(f"Playwright/API Error: {e}")
             await update.message.reply_text("Abhi main thoda busy hoon, baad mein baat karte hain! 😇")
 
 if __name__ == '__main__':
@@ -80,6 +84,6 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), chat))
     
-    print("Bot is running...")
+    print("Bot is running with Playwright bypass...")
     app.run_polling()
-    
+            
