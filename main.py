@@ -45,7 +45,7 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     user_message = update.message.text
-    api_url = f"https://ukrainexinfo.42web.io/gf-api.php?key=Tushar7demo&message={user_message}"
+    api_url = "https://ukrainexinfo.42web.io/gf-api.php?key=Tushar7demo&message=hello+jaan={user_message}"
     
     try:
         response = requests.get(api_url).json()
